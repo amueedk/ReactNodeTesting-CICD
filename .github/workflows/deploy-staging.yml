@@ -1,19 +1,17 @@
-name: Deploy to Testing Environment
+name: Deploy to Staging Environment
 
 on:
-  pull_request:
+  push:
     branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  deploy-testing:
+  deploy-staging:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout PR code
+    - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -32,23 +30,19 @@ jobs:
     - name: Run linting
       run: npx eslint src/ || echo "Lint warnings ignored"
 
-    - name: Deploy PR code to Testing EC2
+    - name: Deploy to Staging EC2
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.TESTING_EC2_IP }}
+        host: ${{ secrets.STAGING_EC2_IP }}
         username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.TESTING_SSH_KEY }}
+        key: ${{ secrets.STAGING_SSH_KEY }}
         script: |
-          if [ ! -d "ReactNodeTesting-CICD" ]; then
-            git clone https://github.com/${{ github.repository }}.git
-          fi
+          cd ~/ReactNodeTesting-CICD || git clone https://github.com/${{ github.repository }}.git
           cd ReactNodeTesting-CICD
-          git fetch origin
-          git checkout ${{ github.head_ref }}
-          git pull origin ${{ github.head_ref }}
+          git pull origin main
           npm install
           npm run build-react
-          pm2 restart testing-app || pm2 start npm --name testing-app -- start
+          pm2 restart all || pm2 start npm --name staging-app -- start
 
     - name: Email on Success
       if: success()
@@ -58,15 +52,14 @@ jobs:
         server_port: 465
         username: ${{ secrets.DEV_EMAIL }}
         password: ${{ secrets.DEV_EMAIL_PASSWORD }}
-        subject: "✅ Testing Deployment Successful"
+        subject: "✅ Staging Deployment Successful"
         to: ${{ secrets.DEV_EMAIL }}
         from: GitHub Actions
         body: |
-          Testing deployment successful.
+          Staging deployment successful.
 
-          PR Branch: ${{ github.head_ref }}
           Access app:
-          http://${{ secrets.TESTING_EC2_IP }}:3000
+          http://${{ secrets.STAGING_EC2_IP }}:3000
 
     - name: Email on Failure
       if: failure()
@@ -76,9 +69,9 @@ jobs:
         server_port: 465
         username: ${{ secrets.DEV_EMAIL }}
         password: ${{ secrets.DEV_EMAIL_PASSWORD }}
-        subject: "❌ Testing Deployment Failed"
+        subject: "❌ Staging Deployment Failed"
         to: ${{ secrets.DEV_EMAIL }}
         from: GitHub Actions
         body: |
-          Deployment to Testing failed.
+          Deployment to Staging failed.
           Check GitHub Actions logs.
