@@ -41,7 +41,7 @@ jobs:
           cd ReactNodeTesting-CICD
           git pull origin main
           npm install
-          npm run build
+          npm run build-react
           pm2 restart all || pm2 start npm --name staging-app -- start
 
     - name: Email on Success
@@ -75,4 +75,3 @@ jobs:
         body: |
           Deployment to Staging failed.
           Check GitHub Actions logs.
-
